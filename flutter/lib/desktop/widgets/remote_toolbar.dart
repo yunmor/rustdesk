@@ -1770,6 +1770,17 @@ class _DisplayMenuState extends State<_DisplayMenu> {
             ffi: widget.ffi,
             screenAdjustor: _screenAdjustor,
           ),
+        if (ffiModel.supportsAuto1080p && ffi.connType == ConnType.defaultConn)
+          Obx(() => CkbMenuButton(
+                value: ffiModel.auto1080p.value,
+                onChanged: ffiModel.keyboard && !ffiModel.viewOnly
+                    ? (value) {
+                        if (value != null) ffiModel.setAuto1080p(value);
+                      }
+                    : null,
+                ffi: ffi,
+                child: Text(translate('Use 1080p virtual display on connect')),
+              )),
         if (showVirtualDisplayMenu(ffi) && ffi.connType == ConnType.defaultConn)
           _SubmenuButton(
             ffi: widget.ffi,

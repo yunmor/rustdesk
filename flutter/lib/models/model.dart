@@ -108,6 +108,85 @@ class FfiModel with ChangeNotifier {
   CachedPeerData cachedPeerData = CachedPeerData();
   PeerInfo _pi = PeerInfo();
   int? lastUserDisplay;
+  static const _auto1080pOption = 'auto-1080p-virtual-display';
+  final auto1080p = false.obs;
+  bool _preparing1080p = false;
+
+  bool get supportsAuto1080p =>
+      isWindows && _pi.platform == kPeerPlatformWindows &&
+      _pi.isInstalled && _pi.isRustDeskIdd;
+
+  Future<void> setAuto1080p(bool enabled) async {
+    await bind.sessionSetFlutterOption(
+        sessionId: sessionId, k: _auto1080pOption, v: enabled ? 'Y' : 'N');
+    auto1080p.value = enabled;
+    if (enabled) await _prepare1080pDisplay();
+  }
+
+  Future<bool> _prepare1080pDisplay() async {
+    final ffi = parent.target;
+    if (ffi == null || ffi.closed || !supportsAuto1080p || !keyboard ||
+        viewOnly || _preparing1080p || ffi.connType != ConnType.defaultConn ||
+        PrivacyModeState.find(ffi.id).isNotEmpty) return false;
+
+    _preparing1080p = true;
+    try {
+      int virtualIndex() {
+        final current = _pi.currentDisplay;
+        if (current >= 0 && current < _pi.displays.length &&
+            _pi.displays[current].isVirtualDisplayResolution) {
+          return current;
+        }
+        return _pi.displays.indexWhere((d) => d.isVirtualDisplayResolution);
+      }
+
+      bool isActive() => !ffi.closed && auto1080p.value && keyboard && !viewOnly;
+      var index = virtualIndex();
+      if (index < 0) {
+        if (_pi.RustDeskVirtualDisplays.isEmpty) {
+          await bind.sessionToggleVirtualDisplay(
+              sessionId: sessionId, index: 1, on: true);
+        }
+        for (var attempt = 0; isActive() && index < 0 && attempt < 40; attempt++) {
+          await Future<void>.delayed(const Duration(milliseconds: 300));
+          index = virtualIndex();
+        }
+      }
+      if (!isActive()) return false;
+      if (index < 0) {
+        showToast(translate('Could not prepare the 1080p virtual display'));
+        return false;
+      }
+
+      openMonitorInTheSameTab(index, ffi, _pi);
+      final display = _pi.displays[index];
+      if (display.width != 1920 || display.height != 1080) {
+        await bind.sessionChangeResolution(
+            sessionId: sessionId, display: index, width: 1920, height: 1080);
+        for (var attempt = 0; attempt < 25 && isActive(); attempt++) {
+          if (_pi.currentDisplay != index || index >= _pi.displays.length) {
+            return false;
+          }
+          final current = _pi.displays[index];
+          if (current.width == 1920 && current.height == 1080) return true;
+          await Future<void>.delayed(const Duration(milliseconds: 200));
+        }
+        if (isActive()) {
+          showToast(translate('Could not prepare the 1080p virtual display'));
+        }
+        return false;
+      }
+      return true;
+    } catch (error) {
+      debugPrint('Could not prepare the 1080p virtual display: $error');
+      if (!ffi.closed) {
+        showToast(translate('Could not prepare the 1080p virtual display'));
+      }
+      return false;
+    } finally {
+      _preparing1080p = false;
+    }
+  }
   int? pendingMonitorRestore;
   Timer? _pendingRestoreTimer;
   Rect? _rect;
@@ -1498,6 +1577,12 @@ class FfiModel with ChangeNotifier {
     notifyListeners();
 
     if (!isCache) {
+      if (supportsAuto1080p && connType == ConnType.defaultConn) {
+        auto1080p.value = await bind.sessionGetFlutterOption(
+                sessionId: sessionId, k: _auto1080pOption) ==
+            'Y';
+        if (auto1080p.value && await _prepare1080pDisplay()) return;
+      }
       tryUseAllMyDisplaysForTheRemoteSession(peerId);
     }
   }
