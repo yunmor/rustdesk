@@ -109,12 +109,13 @@ class FfiModel with ChangeNotifier {
   PeerInfo _pi = PeerInfo();
   int? lastUserDisplay;
   static const _auto1080pOption = 'auto-1080p-virtual-display';
+  static const _auto1080pDisplayOption = 'auto-1080p-display-name';
   final auto1080p = false.obs;
   bool _preparing1080p = false;
 
   bool get supportsAuto1080p =>
       isWindows && _pi.platform == kPeerPlatformWindows &&
-      _pi.isInstalled && _pi.isRustDeskIdd;
+      _pi.isInstalled && (_pi.isRustDeskIdd || _pi.isAmyuniIdd);
 
   Future<void> setAuto1080p(bool enabled) async {
     await bind.sessionSetFlutterOption(
@@ -131,7 +132,26 @@ class FfiModel with ChangeNotifier {
 
     _preparing1080p = true;
     try {
+      var knownName = _pi.isAmyuniIdd
+          ? await bind.sessionGetFlutterOption(
+                  sessionId: sessionId, k: _auto1080pDisplayOption) ??
+              ''
+          : '';
+      final existingNames = _pi.displays.map((d) => d.name).toSet();
+      var creatingAmyuni = false;
       int virtualIndex() {
+        if (_pi.isAmyuniIdd) {
+          if (_pi.amyuniVirtualDisplayCount == 0) return -1;
+          if (creatingAmyuni) {
+            final additions = _pi.displays.where((display) =>
+                display.name.isNotEmpty &&
+                !existingNames.contains(display.name)).toList();
+            if (additions.length != 1) return -1;
+            knownName = additions.single.name;
+          }
+          if (knownName.isEmpty) return -1;
+          return _pi.displays.indexWhere((display) => display.name == knownName);
+        }
         final current = _pi.currentDisplay;
         if (current >= 0 && current < _pi.displays.length &&
             _pi.displays[current].isVirtualDisplayResolution) {
@@ -143,7 +163,16 @@ class FfiModel with ChangeNotifier {
       bool isActive() => !ffi.closed && auto1080p.value && keyboard && !viewOnly;
       var index = virtualIndex();
       if (index < 0) {
-        if (_pi.RustDeskVirtualDisplays.isEmpty) {
+        if (_pi.isAmyuniIdd) {
+          if (_pi.amyuniVirtualDisplayCount > 0 || existingNames.contains('') ||
+              existingNames.isEmpty) {
+            showToast(translate('Remove the existing virtual display before enabling automatic 1080p'));
+            return false;
+          }
+          creatingAmyuni = true;
+          await bind.sessionToggleVirtualDisplay(
+              sessionId: sessionId, index: 0, on: true);
+        } else if (_pi.RustDeskVirtualDisplays.isEmpty) {
           await bind.sessionToggleVirtualDisplay(
               sessionId: sessionId, index: 1, on: true);
         }
@@ -158,6 +187,13 @@ class FfiModel with ChangeNotifier {
         return false;
       }
 
+      if (creatingAmyuni) {
+        await bind.sessionSetFlutterOption(
+            sessionId: sessionId, k: _auto1080pDisplayOption, v: knownName);
+        if (!isActive()) return false;
+        index = virtualIndex();
+        if (index < 0) return false;
+      }
       openMonitorInTheSameTab(index, ffi, _pi);
       final display = _pi.displays[index];
       if (display.width != 1920 || display.height != 1080) {
@@ -1712,6 +1748,7 @@ class FfiModel with ChangeNotifier {
 
   Display evtToDisplay(Map<String, dynamic> evt) {
     var d = Display();
+    d.name = evt['name'] as String? ?? '';
     d.x = evt['x']?.toDouble() ?? d.x;
     d.y = evt['y']?.toDouble() ?? d.y;
     d.width = evt['width'] ?? d.width;
@@ -4537,6 +4574,7 @@ const kInvalidResolutionValue = -1;
 const kVirtualDisplayResolutionValue = 0;
 
 class Display {
+  String name = '';
   double x = 0;
   double y = 0;
   int width = 0;

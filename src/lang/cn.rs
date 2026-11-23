@@ -719,6 +719,7 @@ pub static ref T: std::collections::HashMap<&'static str, &'static str> =
         ("Right-drag relative mouse", "按住右键时使用相对鼠标"),
         ("Use 1080p virtual display on connect", "连接时使用 1080p 虚拟屏"),
         ("Could not prepare the 1080p virtual display", "无法准备 1080p 虚拟屏"),
+        ("Remove the existing virtual display before enabling automatic 1080p", "请先关闭已有虚拟屏，再启用自动 1080p"),
         ("rel-mouse-not-supported-peer-tip", "被控端不支持相对鼠标模式"),
         ("rel-mouse-not-ready-tip", "相对鼠标模式尚未准备好，请稍后再试"),
         ("rel-mouse-lock-failed-tip", "无法锁定鼠标，相对鼠标模式已禁用"),

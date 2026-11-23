@@ -658,7 +658,9 @@ impl FlutterHandler {
                 let scaled_width = (d.width as f64 / d.scale).round() as i32;
                 h.insert("scaled_width", scaled_width);
             }
-            msg_vec.push(h);
+            let mut display = serde_json::to_value(h).unwrap_or_default();
+            display["name"] = serde_json::Value::String(d.name.clone());
+            msg_vec.push(display);
         }
         serde_json::ser::to_string(&msg_vec).unwrap_or("".to_owned())
     }
