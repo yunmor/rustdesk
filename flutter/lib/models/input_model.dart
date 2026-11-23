@@ -21,6 +21,7 @@ import '../common/widgets/keyboard_shortcuts/shortcut_utils.dart';
 import 'input_modifier_utils.dart';
 import 'local_flutter_shortcuts.dart';
 import 'relative_mouse_model.dart';
+import '../utils/relative_mouse_accumulator.dart';
 import '../common.dart';
 import '../consts.dart';
 
@@ -474,6 +475,8 @@ class InputModel {
 
   // Relative mouse mode (for games/3D apps).
   final relativeMouseMode = false.obs;
+  final rightDragRelativeMode = false.obs;
+  final _rightDragDeltas = RelativeMouseAccumulator();
   late final RelativeMouseModel _relativeMouse;
   // Callback to cancel external throttle timer when relative mouse mode is disabled.
   VoidCallback? onRelativeMouseModeDisabled;
@@ -1829,6 +1832,7 @@ class InputModel {
   }
 
   void onPointDownImage(PointerDownEvent e) {
+    _rightDragDeltas.reset();
     debugPrint("onPointDownImage ${e.kind}");
     _stopFling = true;
     if (isDesktop) _queryOtherWindowCoords = true;
@@ -1874,6 +1878,7 @@ class InputModel {
   }
 
   void onPointUpImage(PointerUpEvent e) {
+    _rightDragDeltas.reset();
     if (isDesktop) _queryOtherWindowCoords = false;
     if (isViewOnly && !showMyCursor) return;
     if (isViewCamera) return;
@@ -1912,6 +1917,30 @@ class InputModel {
       _queryOtherWindowCoords = false;
     }
     if (isPhysicalMouse.value) {
+      if (isWindows &&
+          rightDragRelativeMode.value &&
+          !_relativeMouse.enabled.value &&
+          isRelativeMouseModeSupported &&
+          keyboardPerm &&
+          !isViewOnly &&
+          (e.buttons & _pressedMouseButtons & kSecondaryMouseButton) != 0) {
+        final delta = _rightDragDeltas.add(
+          e.delta.dx,
+          e.delta.dy,
+          maxDelta: kMaxRelativeMouseDelta,
+        );
+        if (delta != null) {
+          bind.sessionSendMouse(
+            sessionId: sessionId,
+            msg: json.encode(modify({
+              'type': 'move_relative',
+              'x': '${delta.x}',
+              'y': '${delta.y}',
+            })),
+          );
+        }
+        return;
+      }
       if (!_relativeMouse.handleRelativeMouseMove(e.localPosition)) {
         final canvasPosition = _pointerPositionForRemoteCanvas(e);
         handleMouse(_getMouseEvent(e, _kMouseEventMove), canvasPosition,

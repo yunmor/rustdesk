@@ -1378,6 +1378,15 @@ List<TToggleMenu> toolbarKeyboardToggles(FFI ffi) {
           }
         },
         child: Text(translate('Relative mouse mode'))));
+    if (isWindows) {
+      v.add(TToggleMenu(
+        value: ffi.inputModel.rightDragRelativeMode.value,
+        onChanged: (value) {
+          if (value != null) ffi.inputModel.rightDragRelativeMode.value = value;
+        },
+        child: Text(translate('Right-drag relative mouse')),
+      ));
+    }
   }
 
   // reverse mouse wheel

@@ -716,6 +716,7 @@ pub static ref T: std::collections::HashMap<&'static str, &'static str> =
         ("note-at-conn-end-tip", "在连接结束时请求备注"),
         ("Show terminal extra keys", "显示终端扩展键"),
         ("Relative mouse mode", "相对鼠标模式"),
+        ("Right-drag relative mouse", "按住右键时使用相对鼠标"),
         ("rel-mouse-not-supported-peer-tip", "被控端不支持相对鼠标模式"),
         ("rel-mouse-not-ready-tip", "相对鼠标模式尚未准备好，请稍后再试"),
         ("rel-mouse-lock-failed-tip", "无法锁定鼠标，相对鼠标模式已禁用"),

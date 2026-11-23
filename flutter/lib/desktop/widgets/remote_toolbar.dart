@@ -2288,6 +2288,12 @@ class _ResolutionsMenuState extends State<_ResolutionsMenu> {
       menuChildren: <Widget>[
             _OriginalResolutionMenuButton(context, showOriginalBtn),
             _FitLocalResolutionMenuButton(context, showFitLocalBtn),
+            if (isVirtualDisplay) ...[
+              if (!resolutions.any((r) => r.width == 1920 && r.height == 1080))
+                _virtualResolutionPreset(1920, 1080, '1080p'),
+              if (!resolutions.any((r) => r.width == 2560 && r.height == 1440))
+                _virtualResolutionPreset(2560, 1440, '1440p'),
+            ],
             _customResolutionMenuButton(context, isVirtualDisplay),
             _menuDivider(showOriginalBtn, showFitLocalBtn, isVirtualDisplay),
           ] +
@@ -2457,6 +2463,17 @@ class _ResolutionsMenuState extends State<_ResolutionsMenu> {
         child: Text(
             '${translate('resolution_fit_local_tip')} ${_localResolution?.width ?? 0}x${_localResolution?.height ?? 0}'),
       ),
+    );
+  }
+
+  Widget _virtualResolutionPreset(int width, int height, String label) {
+    final value = '${width}x${height}';
+    return RdoMenuButton(
+      value: value,
+      groupValue: _groupValue,
+      onChanged: (selection) => _onChanged(selection),
+      ffi: widget.ffi,
+      child: Text('$label ($value)'),
     );
   }
 
