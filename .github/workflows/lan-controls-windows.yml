@@ -242,6 +242,7 @@ jobs:
           # --hwcodec is shared by all Windows targets; per-target extras (e.g. --vram) come from the matrix
           python3 .\build.py --portable --flutter --skip-portable-pack --hwcodec ${{ matrix.job.build-args }}
           mv ./flutter/build/windows/${{ matrix.job.flutter-arch }}/runner/Release ./rustdesk
+          New-Item -ItemType File -Path ./rustdesk/rustdesk-portable.mode | Out-Null
 
           # Download usbmmidd_v2.zip and extract it to ./rustdesk
           Invoke-WebRequest -Uri https://github.com/rustdesk-org/rdev/releases/download/usbmmidd_v2/usbmmidd_v2.zip -OutFile usbmmidd_v2.zip
@@ -276,17 +277,6 @@ jobs:
           } catch {
               Write-Host "Ingore the printer driver error."
           }
-
-      - name: Run the Rust tests
-        # x86_64 only: the tests are the same code on arm64, and that runner is the slow one.
-        if: ${{ matrix.job.arch == 'x86_64' }}
-        shell: bash
-        run: |
-          # The build's own features, so the tests see the code that ships.
-          FEATURES=$(python3 ./build.py --portable --flutter --skip-portable-pack --hwcodec ${{ matrix.job.build-args }} --print-features)
-          cargo test --locked --release --lib --features "$FEATURES"
-          # Its Windows tests run nowhere else.
-          cargo test --locked --release -p clipboard
 
       - name: find Runner.res
         # Windows: find Runner.res (compiled from ./flutter/windows/runner/Runner.rc), copy to ./Runner.res

@@ -2507,6 +2507,18 @@ pub fn rustdesk_interval(i: Interval) -> ThrottledInterval {
 }
 
 pub fn load_custom_client() {
+    // An explicit local marker opts this build out of installer UI and commands.
+    #[cfg(target_os = "windows")]
+    if std::env::current_exe()
+        .ok()
+        .and_then(|exe| exe.parent().map(|dir| dir.join("rustdesk-portable.mode")))
+        .is_some_and(|marker| marker.is_file())
+    {
+        config::HARD_SETTINGS
+            .write()
+            .unwrap()
+            .insert("disable-installation".to_owned(), "Y".to_owned());
+    }
     #[cfg(debug_assertions)]
     if let Ok(data) = std::fs::read_to_string("./custom.txt") {
         read_custom_client(data.trim());
